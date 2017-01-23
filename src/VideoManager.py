@@ -5,26 +5,26 @@ from src.MotionDetector import MotionDetector
 
 
 class VideoManager(object):
-    def __init__(self):
+    def __init__(self, length, video_format):
+        self.video_format = video_format
+        self.length = length
         self.device = 0
         self.codec = 'XVID'
+        self.fourcc = cv.VideoWriter_fourcc(*self.codec)
         self.resolution = (640, 480)
         self.frame_rate = 20
         self.sensitivity = 7
-        self.background_model = None
         self.recording = True
+        self.background_model = None
         self.cap = None
-        self.fourcc = cv.VideoWriter_fourcc(*self.codec)
         self.motion_detector = None
         self.out = None
-        self.video_thread = None
+        self.thread = None
         self.file_name = None
-
-        pass
 
     @property
     def fileName(self):
-        return self.file_name + ".avi"
+        return f"tmp_{self.file_name}.{self.video_format}"
 
     def startRecording(self, file_name):
         self.file_name = file_name
@@ -32,8 +32,8 @@ class VideoManager(object):
         self.out = cv.VideoWriter(self.fileName, self.fourcc, self.frame_rate, self.resolution)
         self.recording = True
 
-        self.video_thread = threading.Thread(target=self.recordingVideoDelegate)
-        self.video_thread.start()
+        self.thread = threading.Thread(target=self.recordingVideoDelegate)
+        self.thread.start()
         pass
 
     def stopRecording(self):
@@ -44,12 +44,14 @@ class VideoManager(object):
     def dispose(self):
         self.out.release()
         self.cap.release()
-        cv.destroyAllWindows()
+        # cv.destroyAllWindows()
         # if self.video_thread._is_stopped:
         #     self.video_thread.stop()
         pass
 
     def recordingVideoDelegate(self):
+        timer = threading.Timer(self.length, self.stopRecording)
+        timer.start()
         while self.recording & self.cap.isOpened():
             frame = self.getFrame()
             if frame is None:

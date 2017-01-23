@@ -4,23 +4,23 @@ import wave
 
 
 class AudioManager(object):
-    def __init__(self):
+    def __init__(self, length, audio_format):
+        self.audio_format = audio_format
         self.recording = True
         self.rate = 44100
         self.frames_per_buffer = 1024
         self.channels = 2
-        self.audio_thread = None
+        self.length = length
+        self.thread = None
         self.format = pyaudio.paInt16
         self.file_name = None
         self.audio = None
         self.stream = None
         self.audio_frames = []
 
-        pass
-
     @property
     def fileName(self):
-        return self.file_name + ".wav"
+        return f"tmp_{self.file_name}.{self.audio_format}"
 
     def startRecording(self, file_name):
         self.file_name = file_name
@@ -33,12 +33,12 @@ class AudioManager(object):
         self.stream.start_stream()
         self.recording = True
 
-        self.audio_thread = threading.Thread(target=self.recordingAudioDelegate)
-        self.audio_thread.start()
+        self.thread = threading.Thread(target=self.recordingAudioDelegate)
+        self.thread.start()
         pass
 
     def stopRecording(self):
-        if self.open:
+        if self.recording:
             self.recording = False
 
             waveFile = wave.open(self.fileName, 'wb')
@@ -61,6 +61,8 @@ class AudioManager(object):
         pass
 
     def recordingAudioDelegate(self):
+        timer = threading.Timer(self.length, self.stopRecording)
+        timer.start()
         while self.recording:
             data = self.stream.read(self.frames_per_buffer)
             self.audio_frames.append(data)
