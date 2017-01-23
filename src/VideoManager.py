@@ -1,3 +1,4 @@
+import threading
 import cv2 as cv
 import datetime
 from src.MotionDetector import MotionDetector
@@ -5,7 +6,6 @@ from src.MotionDetector import MotionDetector
 
 class VideoManager(object):
     def __init__(self):
-        self.video_length = 10
         self.device = 0
         self.codec = 'XVID'
         self.resolution = (640, 480)
@@ -13,21 +13,43 @@ class VideoManager(object):
         self.sensitivity = 7
         self.background_model = None
         self.recording = True
-
-        self.cap = cv.VideoCapture(self.device)
+        self.cap = None
         self.fourcc = cv.VideoWriter_fourcc(*self.codec)
         self.motion_detector = None
         self.out = None
+        self.video_thread = None
+        self.file_name = None
 
         pass
 
     @property
     def fileName(self):
-        return datetime.datetime.now().strftime("%I-%M-%S %p - %B %d %Y") + ".avi"
+        return self.file_name + ".avi"
 
-    def startRecording(self):
+    def startRecording(self, file_name):
+        self.file_name = file_name
+        self.cap = cv.VideoCapture(self.device)
         self.out = cv.VideoWriter(self.fileName, self.fourcc, self.frame_rate, self.resolution)
         self.recording = True
+
+        self.video_thread = threading.Thread(target=self.recordingVideoDelegate)
+        self.video_thread.start()
+        pass
+
+    def stopRecording(self):
+        self.recording = False
+        self.dispose()
+        pass
+
+    def dispose(self):
+        self.out.release()
+        self.cap.release()
+        cv.destroyAllWindows()
+        # if self.video_thread._is_stopped:
+        #     self.video_thread.stop()
+        pass
+
+    def recordingVideoDelegate(self):
         while self.recording & self.cap.isOpened():
             frame = self.getFrame()
             if frame is None:
@@ -51,18 +73,8 @@ class VideoManager(object):
 
             if self.out is not None:
                 self.out.write(frame)
-            #cv.imshow('frame', frame)
+                # cv.imshow('frame', frame)
         pass
-
-    def stopRecording(self):
-        self.recording = False
-        self.out.release()
-        pass
-
-    def dispose(self):
-        self.stopRecording()
-        self.cap.release()
-        cv.destroyAllWindows()
 
     def getFrame(self):
         ret, frame = self.cap.read()
